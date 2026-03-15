@@ -110,7 +110,7 @@ export function useTableMutation(
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, ...updates }: TUpdate & { id: string }) => {
+    mutationFn: async ({ id, ...updates }: Record<string, any> & { id: string }) => {
       const { data, error } = await (supabase.from(tableName) as any).update(updates).eq("id", id).select().single();
       if (error) throw error;
       return data;
