@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { CategoryBadge } from "@/components/CategoryBadge";
-import { cityConfig, mockCommunityPosts } from "@/lib/mock-data";
+import { useCityConfig, useCommunityPosts } from "@/hooks/use-data";
 import { Search } from "lucide-react";
 
 function formatDate(dateStr: string) {
@@ -9,32 +9,35 @@ function formatDate(dateStr: string) {
 }
 
 const responseFilters = ["All", "yes", "no", "partial"];
-const groups = ["All Groups", ...Array.from(new Set(mockCommunityPosts.map((p) => p.group_name)))];
 
 export default function CommunityPage() {
   const [groupFilter, setGroupFilter] = useState("All Groups");
   const [responseFilter, setResponseFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const { data: config } = useCityConfig();
+  const { data: posts } = useCommunityPosts();
 
-  const filtered = mockCommunityPosts.filter((p) => {
+  const allPosts = posts ?? [];
+  const groups = ["All Groups", ...Array.from(new Set(allPosts.map((p) => p.group_name)))];
+
+  const filtered = allPosts.filter((p) => {
     if (groupFilter !== "All Groups" && p.group_name !== groupFilter) return false;
     if (responseFilter !== "All" && p.city_response !== responseFilter) return false;
     if (searchQuery && !p.summary.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
-  const unanswered = mockCommunityPosts.filter((p) => p.city_response === "no");
+  const unanswered = allPosts.filter((p) => p.city_response === "no");
 
   return (
     <SiteLayout>
       <section className="bg-primary py-10">
         <div className="container">
           <h1 className="text-3xl font-bold text-primary-foreground">Community Pulse</h1>
-          <p className="mt-2 text-primary-foreground/70">What {cityConfig.city_name} residents are saying in public forums</p>
+          <p className="mt-2 text-primary-foreground/70">What {config?.city_name} residents are saying in public forums</p>
         </div>
       </section>
 
-      {/* Filters */}
       <section className="sticky top-16 z-40 border-b bg-background py-4">
         <div className="container flex flex-wrap gap-3">
           <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
@@ -50,7 +53,6 @@ export default function CommunityPage() {
         </div>
       </section>
 
-      {/* Unanswered Highlight */}
       {unanswered.length > 0 && (
         <section className="py-8">
           <div className="container">
@@ -62,10 +64,10 @@ export default function CommunityPage() {
                   <div key={post.id} className="rounded-lg border bg-card p-4">
                     <div className="mb-2 flex items-center gap-2">
                       <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{post.group_name}</span>
-                      <CategoryBadge category={post.theme} />
+                      {post.theme && <CategoryBadge category={post.theme} />}
                     </div>
                     <p className="text-sm text-card-foreground">{post.summary}</p>
-                    <p className="mt-2 text-xs text-muted-foreground">{formatDate(post.created_at)}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">{post.created_at ? formatDate(post.created_at) : ""}</p>
                   </div>
                 ))}
               </div>
@@ -74,7 +76,6 @@ export default function CommunityPage() {
         </section>
       )}
 
-      {/* All Posts */}
       <section className="py-8">
         <div className="container">
           <h2 className="mb-4 text-xl font-bold text-foreground">All Community Posts</h2>
@@ -83,14 +84,14 @@ export default function CommunityPage() {
               <div key={post.id} className="rounded-lg border bg-card p-5">
                 <div className="mb-2 flex items-center gap-2">
                   <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">{post.group_name}</span>
-                  <CategoryBadge category={post.theme} />
+                  {post.theme && <CategoryBadge category={post.theme} />}
                 </div>
                 <p className="mb-3 text-sm text-card-foreground">{post.summary}</p>
                 <div className="flex items-center justify-between">
                   <span className={`text-xs font-medium ${post.city_response === "yes" ? "text-success" : post.city_response === "partial" ? "text-accent-foreground" : "text-destructive"}`}>
                     City responded: {post.city_response === "yes" ? "✓" : post.city_response === "partial" ? "Partial" : "✗"}
                   </span>
-                  <span className="text-xs text-muted-foreground">{formatDate(post.created_at)}</span>
+                  <span className="text-xs text-muted-foreground">{post.created_at ? formatDate(post.created_at) : ""}</span>
                 </div>
               </div>
             ))}

@@ -1,12 +1,14 @@
 import { SiteLayout } from "@/components/SiteLayout";
-import { cityConfig } from "@/lib/mock-data";
+import { useCityConfig } from "@/hooks/use-data";
 
 export default function AboutPage() {
+  const { data: config } = useCityConfig();
+
   return (
     <SiteLayout>
       <section className="bg-primary py-10">
         <div className="container">
-          <h1 className="text-3xl font-bold text-primary-foreground">About {cityConfig.display_name}</h1>
+          <h1 className="text-3xl font-bold text-primary-foreground">About {config?.display_name}</h1>
         </div>
       </section>
 
@@ -15,14 +17,14 @@ export default function AboutPage() {
           <div>
             <h2 className="text-2xl font-bold text-foreground">Our Mission</h2>
             <p className="mt-3 leading-relaxed text-foreground">
-              {cityConfig.display_name} is an independent, non-partisan civic monitoring platform that provides {cityConfig.city_name} residents with factual, sourced information about their local government. We believe that informed residents make stronger communities.
+              {config?.display_name} is an independent, non-partisan civic monitoring platform that provides {config?.city_name} residents with factual, sourced information about their local government. We believe that informed residents make stronger communities.
             </p>
           </div>
 
           <div>
             <h2 className="text-2xl font-bold text-foreground">What We Are Not</h2>
             <ul className="mt-3 space-y-2 text-foreground">
-              <li className="flex items-start gap-2"><span className="mt-1 text-destructive">✗</span> We are not affiliated with {cityConfig.city_name} City Government.</li>
+              <li className="flex items-start gap-2"><span className="mt-1 text-destructive">✗</span> We are not affiliated with {config?.city_name} City Government.</li>
               <li className="flex items-start gap-2"><span className="mt-1 text-destructive">✗</span> We are not a news organization or editorial outlet.</li>
               <li className="flex items-start gap-2"><span className="mt-1 text-destructive">✗</span> We do not endorse candidates, parties, or positions.</li>
             </ul>
@@ -56,10 +58,9 @@ export default function AboutPage() {
             <h2 className="text-2xl font-bold text-foreground">GRAMA & Public Records</h2>
             <p className="mt-3 leading-relaxed text-foreground">
               Utah's Government Records Access and Management Act (GRAMA) gives every resident the right to access public records. If you'd like to file your own records request, visit the{" "}
-              <a href={cityConfig.city_website} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline hover:text-primary/80">
-                {cityConfig.city_name} City website
-              </a>{" "}
-              or contact the City Recorder's office. We also file GRAMA requests on behalf of the public interest and publish the results here.
+              <a href={config?.city_website ?? "#"} target="_blank" rel="noopener noreferrer" className="font-medium text-primary underline hover:text-primary/80">
+                {config?.city_name} City website
+              </a>.
             </p>
           </div>
 
@@ -67,8 +68,8 @@ export default function AboutPage() {
             <h2 className="text-2xl font-bold text-foreground">Contact</h2>
             <p className="mt-3 text-foreground">
               Reach us at{" "}
-              <a href={`mailto:${cityConfig.email_from}`} className="font-medium text-primary underline hover:text-primary/80">
-                {cityConfig.email_from}
+              <a href={`mailto:${config?.email_from}`} className="font-medium text-primary underline hover:text-primary/80">
+                {config?.email_from}
               </a>
             </p>
           </div>

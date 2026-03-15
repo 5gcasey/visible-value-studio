@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
-import { cityConfig } from "@/lib/mock-data";
+import { useCityConfig } from "@/hooks/use-data";
+import { supabase } from "@/integrations/supabase/client";
 import { Check } from "lucide-react";
 
 export default function SubscribePage() {
@@ -9,9 +10,17 @@ export default function SubscribePage() {
   const [firstName, setFirstName] = useState("");
   const [tier, setTier] = useState("free");
   const [submitted, setSubmitted] = useState(false);
+  const { data: config } = useCityConfig();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    await supabase.from("subscribers").insert({
+      email,
+      phone: phone || null,
+      first_name: firstName || null,
+      tier,
+      subscribed_sms: tier === "premium" && !!phone,
+    });
     setSubmitted(true);
   };
 
@@ -25,7 +34,7 @@ export default function SubscribePage() {
             </div>
             <h1 className="mt-6 text-3xl font-bold text-foreground">You're Subscribed!</h1>
             <p className="mt-3 text-muted-foreground">
-              You'll receive civic alerts for {cityConfig.city_name} at <strong>{email}</strong>.
+              You'll receive civic alerts for {config?.city_name} at <strong>{email}</strong>.
             </p>
           </div>
         </section>
@@ -37,27 +46,22 @@ export default function SubscribePage() {
     <SiteLayout>
       <section className="bg-primary py-10">
         <div className="container">
-          <h1 className="text-3xl font-bold text-primary-foreground">Subscribe to {cityConfig.display_name}</h1>
-          <p className="mt-2 text-primary-foreground/70">Stay informed about what's happening in {cityConfig.city_name}</p>
+          <h1 className="text-3xl font-bold text-primary-foreground">Subscribe to {config?.display_name}</h1>
+          <p className="mt-2 text-primary-foreground/70">Stay informed about what's happening in {config?.city_name}</p>
         </div>
       </section>
 
       <section className="py-12">
         <div className="container max-w-lg">
-          {/* Tier Selection */}
           <div className="mb-8 grid gap-4 sm:grid-cols-2">
-            <button
-              onClick={() => setTier("free")}
-              className={`rounded-lg border-2 p-5 text-left transition-colors duration-150 ${tier === "free" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
-            >
+            <button onClick={() => setTier("free")}
+              className={`rounded-lg border-2 p-5 text-left transition-colors duration-150 ${tier === "free" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
               <h3 className="font-bold text-foreground">Free</h3>
               <p className="mt-1 text-sm text-muted-foreground">Weekly Sunday digest delivered to your inbox.</p>
               <p className="mt-2 text-lg font-bold text-foreground">$0/month</p>
             </button>
-            <button
-              onClick={() => setTier("premium")}
-              className={`rounded-lg border-2 p-5 text-left transition-colors duration-150 ${tier === "premium" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
-            >
+            <button onClick={() => setTier("premium")}
+              className={`rounded-lg border-2 p-5 text-left transition-colors duration-150 ${tier === "premium" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
               <h3 className="font-bold text-foreground">Premium</h3>
               <p className="mt-1 text-sm text-muted-foreground">Daily alerts + SMS + early access to reports.</p>
               <p className="mt-2 text-lg font-bold text-foreground">$5/month</p>
