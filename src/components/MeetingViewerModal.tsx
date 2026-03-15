@@ -3,7 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, MapPin, Video, FileText, ExternalLink, AlertCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Calendar, MapPin, Video, FileText, ExternalLink,
+  AlertCircle, Clock, ChevronDown, ChevronUp, ScrollText
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Meeting {
@@ -14,6 +17,9 @@ interface Meeting {
   location: string | null;
   status: string | null;
   body: string | null;
+  executive_summary: string | null;
+  transcript_text: string | null;
+  transcript_url: string | null;
   agenda_url: string | null;
   video_url: string | null;
   minutes_url: string | null;
@@ -58,16 +64,14 @@ function EmbedFrame({ url, title }: { url: string; title: string }) {
 
   if (blocked) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 p-8 rounded-lg border bg-muted/30">
-        <AlertCircle className="h-8 w-8 text-muted-foreground" />
-        <div className="text-center space-y-1">
-          <p className="text-sm font-medium text-foreground">
-            This content can't be previewed here due to Granicus security settings.
-          </p>
-        </div>
-        <Button variant="default" asChild>
+      <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+        <AlertCircle className="h-10 w-10" />
+        <p className="text-sm text-center">
+          This content can't be previewed here due to Granicus security settings.
+        </p>
+        <Button size="sm" variant="outline" asChild>
           <a href={url} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-4 w-4 mr-1.5" />
+            <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
             Open in Granicus
           </a>
         </Button>
@@ -78,14 +82,15 @@ function EmbedFrame({ url, title }: { url: string; title: string }) {
   return (
     <div className="relative h-full w-full">
       {!loaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted/30 rounded-lg">
+        <div className="absolute inset-0 flex items-center justify-center bg-muted/30">
           <p className="text-sm text-muted-foreground animate-pulse">Loading…</p>
         </div>
       )}
       <iframe
         src={url}
         title={title}
-        className="w-full h-full rounded-lg border"
+        className="h-full w-full border-0 rounded-lg"
+        allowFullScreen
         onLoad={() => setLoaded(true)}
         onError={() => setBlocked(true)}
       />
@@ -96,8 +101,8 @@ function EmbedFrame({ url, title }: { url: string; title: string }) {
 function AgendaItemCard({ item }: { item: MeetingItem }) {
   const [expanded, setExpanded] = useState(false);
   const priorityColor =
-    item.priority === "high" ? "destructive" as const :
-    item.priority === "medium" ? "secondary" as const : "outline" as const;
+    item.priority === "high" ? "destructive" :
+    item.priority === "medium" ? "secondary" : "outline";
 
   return (
     <div className="border rounded-lg p-4 space-y-2">
@@ -112,7 +117,7 @@ function AgendaItemCard({ item }: { item: MeetingItem }) {
       {item.description && (
         <p className="text-sm text-muted-foreground">{item.description}</p>
       )}
-      {(item.financial_impact || item.what_is_issue || item.who_benefits) && (
+      {(item.financial_impact || item.what_is_issue || item.who_benefits || item.who_harmed) && (
         <>
           <button
             onClick={() => setExpanded(!expanded)}
@@ -157,7 +162,7 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
       .eq("meeting_id", meeting.id)
       .order("sort_order", { ascending: true })
       .then(({ data }) => {
-        setItems((data as MeetingItem[]) ?? []);
+        setItems(data ?? []);
         setLoadingItems(false);
       });
   }, [meeting?.id, open]);
@@ -171,14 +176,18 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
   const hasDirectVideo = isDirectLink(meeting.video_url);
   const hasDirectAgenda = isDirectLink(meeting.agenda_url);
   const hasMinutes = !!meeting.minutes_url;
+  const hasTranscript = !!meeting.transcript_text;
+  const hasTranscriptLink = !!meeting.transcript_url;
+
+  const summaryText = meeting.executive_summary || meeting.body;
 
   const statusColor =
-    meeting.status === "cancelled" ? "destructive" as const :
-    meeting.status === "scheduled" ? "secondary" as const : "outline" as const;
+    meeting.status === "cancelled" ? "destructive" :
+    meeting.status === "scheduled" ? "secondary" : "outline";
 
   const formattedDate = meeting.meeting_date
     ? new Date(meeting.meeting_date + "T00:00:00").toLocaleDateString("en-US", {
-        weekday: "long", year: "numeric", month: "long", day: "numeric"
+        weekday: "long", year: "numeric", month: "long", day: "numeric",
       })
     : null;
 
@@ -243,6 +252,14 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
                 </a>
               </Button>
             )}
+            {hasTranscriptLink && (
+              <Button size="sm" variant="outline" asChild>
+                <a href={meeting.transcript_url!} target="_blank" rel="noopener noreferrer">
+                  <ScrollText className="h-3.5 w-3.5 mr-1.5" />
+                  Full Transcript
+                </a>
+              </Button>
+            )}
             {!hasDirectVideo && !hasDirectAgenda && (
               <Button size="sm" variant="outline" asChild>
                 <a href={GRANICUS_CALENDAR} target="_blank" rel="noopener noreferrer">
@@ -256,22 +273,43 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
           <TabsList className="px-6 pt-2 pb-0 border-b rounded-none bg-transparent justify-start h-auto gap-1 shrink-0">
-            <TabsTrigger value="summary" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2">
-              Summary
+            <TabsTrigger
+              value="summary"
+              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2"
+            >
+              Executive Summary
             </TabsTrigger>
             {items.length > 0 && (
-              <TabsTrigger value="items" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2">
+              <TabsTrigger
+                value="items"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2"
+              >
                 Agenda Items ({items.length})
               </TabsTrigger>
             )}
+            {hasTranscript && (
+              <TabsTrigger
+                value="transcript"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2"
+              >
+                <ScrollText className="h-3.5 w-3.5 mr-1.5" />
+                Transcript
+              </TabsTrigger>
+            )}
             {hasDirectVideo && (
-              <TabsTrigger value="video" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2">
+              <TabsTrigger
+                value="video"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2"
+              >
                 <Video className="h-3.5 w-3.5 mr-1.5" />
                 Video
               </TabsTrigger>
             )}
             {hasDirectAgenda && (
-              <TabsTrigger value="agenda" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2">
+              <TabsTrigger
+                value="agenda"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent pb-2"
+              >
                 <FileText className="h-3.5 w-3.5 mr-1.5" />
                 Agenda
               </TabsTrigger>
@@ -293,18 +331,28 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
                   </p>
                 </div>
               </div>
-            ) : meeting.body ? (
-              <div className="prose prose-sm max-w-none">
-                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{meeting.body}</p>
+            ) : summaryText ? (
+              <div className="space-y-4">
+                {meeting.executive_summary && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 bg-primary/10 text-primary rounded-full px-2 py-0.5">
+                      ✦ AI Executive Summary
+                    </span>
+                    <span>Generated from news coverage and meeting records</span>
+                  </div>
+                )}
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                  {summaryText}
+                </p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
                 <Clock className="h-8 w-8" />
-                <p className="text-sm">No summary available for this meeting yet.</p>
+                <p className="text-sm">Summary being generated — check back tonight.</p>
                 {hasDirectAgenda && (
                   <Button variant="link" asChild className="text-xs">
                     <a href={meeting.agenda_url!} target="_blank" rel="noopener noreferrer">
-                      View the official agenda →
+                      View the official agenda in the meantime →
                     </a>
                   </Button>
                 )}
@@ -325,6 +373,31 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
                   ))}
                 </div>
               )}
+            </TabsContent>
+          )}
+
+          {hasTranscript && (
+            <TabsContent value="transcript" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Official transcript from Lehi City / Granicus closed captions
+                  </p>
+                  {hasTranscriptLink && (
+                    <Button size="sm" variant="outline" asChild>
+                      <a href={meeting.transcript_url!} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                        Open full transcript
+                      </a>
+                    </Button>
+                  )}
+                </div>
+                <div className="bg-muted/30 rounded-lg p-4 max-h-[500px] overflow-y-auto">
+                  <p className="text-xs font-mono leading-relaxed whitespace-pre-wrap text-foreground">
+                    {meeting.transcript_text}
+                  </p>
+                </div>
+              </div>
             </TabsContent>
           )}
 
