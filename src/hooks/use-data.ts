@@ -17,7 +17,7 @@ export function useOfficials() {
   return useQuery({
     queryKey: ["officials"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("officials").select("*").eq("status", "active").order("name");
+      const { data, error } = await supabase.from("officials").select("*").eq("status", "active").order("sort_order", { ascending: true, nullsFirst: false });
       if (error) throw error;
       return data;
     },
