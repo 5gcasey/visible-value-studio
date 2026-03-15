@@ -92,11 +92,11 @@ export default function OfficialsPage() {
             <>
               {/* Elected Officials — Pyramid */}
               {elected.length > 0 && (
-                <div className="mb-8">
+                <div className="mb-8 max-w-3xl mx-auto">
                   {/* Row 1: Mayor centered */}
                   {mayor.length > 0 && (
-                    <div className="flex justify-center mb-6">
-                      <div className="w-full max-w-xs">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="col-start-2">
                         <OfficialCard official={mayor[0]} />
                       </div>
                     </div>
@@ -104,19 +104,16 @@ export default function OfficialsPage() {
 
                   {/* Row 2: 3 council members */}
                   {row2.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
                       {row2.map((o) => <OfficialCard key={o.id} official={o} />)}
                     </div>
                   )}
 
                   {/* Row 3: 2 council members centered */}
                   {row3.length > 0 && (
-                    <div className="flex justify-center gap-4 mb-8">
-                      {row3.map((o) => (
-                        <div key={o.id} className="w-full max-w-xs">
-                          <OfficialCard official={o} />
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-3 gap-4 mb-8">
+                      <div className="col-start-1 col-span-1"><OfficialCard official={row3[0]} /></div>
+                      {row3[1] && <div className="col-start-3 col-span-1"><OfficialCard official={row3[1]} /></div>}
                     </div>
                   )}
                 </div>
