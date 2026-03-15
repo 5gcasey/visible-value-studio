@@ -30,7 +30,7 @@ export default function MeetingsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("meetings")
-        .select("id, title, body, executive_summary, meeting_date, meeting_type, location, status, agenda_url, video_url, minutes_url, transcript_url, transcript_text")
+        .select("id, title, body, executive_summary, meeting_date, meeting_type, location, status, agenda_url, video_url, video_stream_url, minutes_url, transcript_url, transcript_text")
         .order("meeting_date", { ascending: false })
         .limit(25);
       if (error) throw error;
