@@ -397,6 +397,7 @@ export type Database = {
       }
       meetings: {
         Row: {
+          agenda_pdf_url: string | null
           agenda_url: string | null
           body: string | null
           created_at: string | null
@@ -417,6 +418,7 @@ export type Database = {
           video_url: string | null
         }
         Insert: {
+          agenda_pdf_url?: string | null
           agenda_url?: string | null
           body?: string | null
           created_at?: string | null
@@ -437,6 +439,7 @@ export type Database = {
           video_url?: string | null
         }
         Update: {
+          agenda_pdf_url?: string | null
           agenda_url?: string | null
           body?: string | null
           created_at?: string | null
