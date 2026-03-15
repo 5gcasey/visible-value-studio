@@ -15,6 +15,8 @@ export default function MeetingsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const { data: config } = useCityConfig();
   const { data: meetings, isLoading } = useMeetings();
 
