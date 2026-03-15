@@ -413,6 +413,7 @@ export type Database = {
           transcript_text: string | null
           transcript_url: string | null
           updated_at: string | null
+          video_stream_url: string | null
           video_url: string | null
         }
         Insert: {
@@ -432,6 +433,7 @@ export type Database = {
           transcript_text?: string | null
           transcript_url?: string | null
           updated_at?: string | null
+          video_stream_url?: string | null
           video_url?: string | null
         }
         Update: {
@@ -451,6 +453,7 @@ export type Database = {
           transcript_text?: string | null
           transcript_url?: string | null
           updated_at?: string | null
+          video_stream_url?: string | null
           video_url?: string | null
         }
         Relationships: []
