@@ -400,6 +400,7 @@ export type Database = {
           agenda_url: string | null
           body: string | null
           created_at: string | null
+          executive_summary: string | null
           id: string
           location: string | null
           meeting_date: string | null
@@ -407,13 +408,18 @@ export type Database = {
           minutes_url: string | null
           packet_url: string | null
           status: string | null
+          summary_generated_at: string | null
           title: string
+          transcript_text: string | null
+          transcript_url: string | null
           updated_at: string | null
+          video_url: string | null
         }
         Insert: {
           agenda_url?: string | null
           body?: string | null
           created_at?: string | null
+          executive_summary?: string | null
           id?: string
           location?: string | null
           meeting_date?: string | null
@@ -421,13 +427,18 @@ export type Database = {
           minutes_url?: string | null
           packet_url?: string | null
           status?: string | null
+          summary_generated_at?: string | null
           title: string
+          transcript_text?: string | null
+          transcript_url?: string | null
           updated_at?: string | null
+          video_url?: string | null
         }
         Update: {
           agenda_url?: string | null
           body?: string | null
           created_at?: string | null
+          executive_summary?: string | null
           id?: string
           location?: string | null
           meeting_date?: string | null
@@ -435,8 +446,12 @@ export type Database = {
           minutes_url?: string | null
           packet_url?: string | null
           status?: string | null
+          summary_generated_at?: string | null
           title?: string
+          transcript_text?: string | null
+          transcript_url?: string | null
           updated_at?: string | null
+          video_url?: string | null
         }
         Relationships: []
       }
