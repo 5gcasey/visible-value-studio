@@ -92,7 +92,7 @@ export default function OfficialsPage() {
             <>
               {/* Elected Officials — Pyramid */}
               {elected.length > 0 && (
-                <div className="mb-8 max-w-3xl mx-auto">
+                <div className="mb-8 max-w-4xl mx-auto">
                   {/* Row 1: Mayor centered */}
                   {mayor.length > 0 && (
                     <div className="grid grid-cols-3 gap-4 mb-4">
