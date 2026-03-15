@@ -168,7 +168,7 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
 
   if (!meeting) return null;
 
-  const hasDirectVideo = isDirectLink((meeting as any).video_url);
+  const hasDirectVideo = isDirectLink(meeting.video_url);
   const hasDirectAgenda = isDirectLink(meeting.agenda_url);
   const hasMinutes = !!meeting.minutes_url;
 
@@ -177,7 +177,7 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
     meeting.status === "scheduled" ? "secondary" as const : "outline" as const;
 
   const formattedDate = meeting.meeting_date
-    ? new Date(meeting.meeting_date).toLocaleDateString("en-US", {
+    ? new Date(meeting.meeting_date + "T00:00:00").toLocaleDateString("en-US", {
         weekday: "long", year: "numeric", month: "long", day: "numeric"
       })
     : null;
@@ -221,7 +221,7 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
           <div className="flex flex-wrap gap-2 pt-3">
             {hasDirectVideo && (
               <Button size="sm" variant="default" asChild>
-                <a href={(meeting as any).video_url!} target="_blank" rel="noopener noreferrer">
+                <a href={meeting.video_url!} target="_blank" rel="noopener noreferrer">
                   <Video className="h-3.5 w-3.5 mr-1.5" />
                   Watch Recording
                 </a>
@@ -294,7 +294,9 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
                 </div>
               </div>
             ) : meeting.body ? (
-              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{meeting.body}</p>
+              <div className="prose prose-sm max-w-none">
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{meeting.body}</p>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
                 <Clock className="h-8 w-8" />
@@ -329,7 +331,7 @@ export function MeetingViewerModal({ meeting, open, onClose }: MeetingViewerModa
           {hasDirectVideo && (
             <TabsContent value="video" className="flex-1 min-h-0 px-6 py-4 mt-0">
               <div className="h-full min-h-[400px]">
-                <EmbedFrame url={(meeting as any).video_url!} title={`Video: ${meeting.title}`} />
+                <EmbedFrame url={meeting.video_url!} title={`Video: ${meeting.title}`} />
               </div>
             </TabsContent>
           )}
