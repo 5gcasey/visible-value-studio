@@ -23,6 +23,7 @@ function MeetingForm({ initial, onSubmit, onCancel }: { initial?: any; onSubmit:
     status: initial?.status ?? "scheduled",
     body: initial?.body ?? "",
     agenda_url: initial?.agenda_url ?? "",
+    video_url: initial?.video_url ?? "",
     minutes_url: initial?.minutes_url ?? "",
     packet_url: initial?.packet_url ?? "",
   });
@@ -54,8 +55,9 @@ function MeetingForm({ initial, onSubmit, onCancel }: { initial?: any; onSubmit:
         </div>
       </div>
       <div className="space-y-2"><Label>Notes</Label><Textarea value={form.body} onChange={(e) => set("body", e.target.value)} /></div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2"><Label>Agenda URL</Label><Input value={form.agenda_url} onChange={(e) => set("agenda_url", e.target.value)} /></div>
+        <div className="space-y-2"><Label>Video URL</Label><Input value={form.video_url} onChange={(e) => set("video_url", e.target.value)} /></div>
         <div className="space-y-2"><Label>Minutes URL</Label><Input value={form.minutes_url} onChange={(e) => set("minutes_url", e.target.value)} /></div>
         <div className="space-y-2"><Label>Packet URL</Label><Input value={form.packet_url} onChange={(e) => set("packet_url", e.target.value)} /></div>
       </div>

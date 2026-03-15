@@ -4,10 +4,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { useCityConfig, useMeetings, useMeetingItems } from "@/hooks/use-data";
 import { ChevronDown, ChevronUp, ExternalLink, Search } from "lucide-react";
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-}
+import { Badge } from "@/components/ui/badge";
 
 const meetingTypes = ["All Types", "city_council", "planning_commission", "rda", "board_of_adjustment", "special", "public_hearing"];
 const statusOptions = ["All", "scheduled", "completed", "cancelled"];
@@ -66,29 +63,63 @@ export default function MeetingsPage() {
   );
 }
 
+function TruncatedBody({ text, limit = 200 }: { text: string; limit?: number }) {
+  const [expanded, setExpanded] = useState(false);
+  if (text.length <= limit) return <p className="mt-2 text-sm text-muted-foreground">{text}</p>;
+  return (
+    <p className="mt-2 text-sm text-muted-foreground">
+      {expanded ? text : `${text.slice(0, limit)}…`}{" "}
+      <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="font-medium text-primary hover:underline">
+        {expanded ? "Show less" : "Read more"}
+      </button>
+    </p>
+  );
+}
+
 function MeetingCard({ meeting, isExpanded, onToggle }: { meeting: any; isExpanded: boolean; onToggle: () => void }) {
   const { data: items } = useMeetingItems(isExpanded ? meeting.id : undefined);
+  const isCancelled = meeting.status === "cancelled";
 
   return (
     <div className="rounded-lg border bg-card transition-shadow duration-150 hover:shadow-md">
-      <button onClick={onToggle} className="flex w-full items-center gap-4 p-5 text-left">
-        <div className="text-center min-w-[60px]">
+      <button onClick={onToggle} className="flex w-full items-start gap-4 p-5 text-left">
+        <div className="text-center min-w-[60px] pt-1">
           <p className="text-xs font-medium uppercase text-muted-foreground">{meeting.meeting_date ? new Date(meeting.meeting_date).toLocaleDateString("en-US", { month: "short" }) : ""}</p>
           <p className="text-2xl font-bold text-foreground">{meeting.meeting_date ? new Date(meeting.meeting_date).getDate() : ""}</p>
           <p className="text-xs text-muted-foreground">{meeting.meeting_date ? new Date(meeting.meeting_date).getFullYear() : ""}</p>
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-card-foreground">{meeting.title}</h3>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-semibold text-card-foreground">{meeting.title}</h3>
+            {isCancelled && <Badge variant="destructive">Cancelled</Badge>}
+            {!isCancelled && <StatusBadge status={meeting.status ?? "scheduled"} />}
+          </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground capitalize">{meeting.meeting_type?.replace("_", " ")}</span>
-            <span className="text-xs text-muted-foreground">• {meeting.location}</span>
+            {meeting.location && <span className="text-xs text-muted-foreground">• {meeting.location}</span>}
           </div>
+          {meeting.body && <TruncatedBody text={meeting.body} />}
+          {!isCancelled && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {meeting.agenda_url && (
+                <a href={meeting.agenda_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
+                  📋 View Agenda <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+              {meeting.video_url && (
+                <a href={meeting.video_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
+                  ▶ Watch Video <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+              {meeting.minutes_url && (
+                <a href={meeting.minutes_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
+                  📄 Minutes <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
+            </div>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          {meeting.agenda_url && <span className="rounded bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">📄 Agenda</span>}
-          {meeting.minutes_url && <span className="rounded bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">📋 Minutes</span>}
-          {meeting.packet_url && <span className="rounded bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">📦 Packet</span>}
-          <StatusBadge status={meeting.status ?? "scheduled"} />
+        <div className="flex-shrink-0 pt-1">
           {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
         </div>
       </button>
@@ -103,11 +134,6 @@ function MeetingCard({ meeting, isExpanded, onToggle }: { meeting: any; isExpand
                   <AgendaItem key={item.id} item={item} />
                 ))}
               </div>
-              {meeting.agenda_url && (
-                <a href={meeting.agenda_url} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-                  View Full Agenda <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              )}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">No agenda items available for this meeting.</p>
