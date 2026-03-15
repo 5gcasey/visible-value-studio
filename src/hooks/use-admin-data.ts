@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import type { Database } from "@/integrations/supabase/types";
+
+type TableName = keyof Database["public"]["Tables"];
 
 // Generic helpers
-function useAdminQuery<T>(key: string[], tableName: string, options?: { orderBy?: string; ascending?: boolean; limit?: number; filters?: Record<string, any> }) {
+function useAdminQuery<T>(key: string[], tableName: TableName, options?: { orderBy?: string; ascending?: boolean; limit?: number; filters?: Record<string, any> }) {
   return useQuery({
     queryKey: key,
     queryFn: async () => {
