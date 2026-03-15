@@ -118,8 +118,8 @@ function MeetingCard({ meeting, isExpanded, onToggle, onOpenViewer }: { meeting:
                   📋 View Agenda <ExternalLink className="h-3 w-3" />
                 </a>
               )}
-              {(meeting as any).video_url && (
-                <a href={(meeting as any).video_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
+              {meeting.video_url && (
+                <a href={meeting.video_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
                   ▶ Watch Video <ExternalLink className="h-3 w-3" />
                 </a>
               )}
