@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Video, AlertCircle, Gauge } from "lucide-react";
-import Hls from "hls.js";
 
 const CALENDAR = "https://lehi.granicus.com/ViewPublisher.php?view_id=1";
 const isFallbackUrl = (url: string | null) =>
@@ -26,76 +25,32 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
   const [status, setStatus] = useState<"loading" | "loaded" | "blocked">("loading");
   const [speed, setSpeed] = useState<Speed>(1);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const hlsRef = useRef<Hls | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const streamUrl = meeting?.video_stream_url ?? null;
   const useNativeVideo = !!streamUrl;
 
-  // Native HLS video setup
+  // Reset state whenever a new meeting opens
   useEffect(() => {
-    if (!open || !useNativeVideo || !streamUrl) return;
-    const video = videoRef.current;
-    if (!video) return;
-
-    setStatus("loading");
-    if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
-
-    if (Hls.isSupported()) {
-      const hls = new Hls({ enableWorker: true });
-      hlsRef.current = hls;
-      hls.loadSource(streamUrl);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setStatus("loaded");
-        video.playbackRate = speed;
-      });
-      hls.on(Hls.Events.ERROR, (_, data) => {
-        if (data.fatal) setStatus("blocked");
-      });
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = streamUrl;
-      video.onloadedmetadata = () => {
-        setStatus("loaded");
-        video.playbackRate = speed;
-      };
-    } else {
-      setStatus("blocked");
+    if (open) {
+      setStatus("loading");
+      setSpeed(1);
     }
+  }, [open]);
 
-    return () => {
-      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
-    };
-  }, [open, streamUrl]);
-
-  // Iframe fallback timeout
+  // Iframe fallback timeout (meetings without a direct MP4 stream)
   useEffect(() => {
     if (!open || useNativeVideo) return;
-    setStatus("loading");
     timerRef.current = setTimeout(() => setStatus("blocked"), 12000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [open, meeting?.video_url, useNativeVideo]);
 
-  // Reset on close
-  useEffect(() => {
-    if (!open) {
-      setSpeed(1);
-      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
-    }
-  }, [open]);
-
+  // Speed control — sets playbackRate directly on the <video> element
   const handleSpeedChange = (newSpeed: Speed) => {
     setSpeed(newSpeed);
     if (videoRef.current) {
       videoRef.current.playbackRate = newSpeed;
-    } else {
-      try {
-        iframeRef.current?.contentWindow?.postMessage(
-          { type: "setPlaybackRate", rate: newSpeed },
-          "https://lehi.granicus.com"
-        );
-      } catch { /* cross-origin */ }
     }
   };
 
@@ -103,12 +58,16 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
 
   const noLink = isFallbackUrl(meeting.video_url) && !useNativeVideo;
   const dateStr = meeting.meeting_date
-    ? new Date(meeting.meeting_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    ? new Date(meeting.meeting_date + "T00:00:00").toLocaleDateString("en-US", {
+        month: "long", day: "numeric", year: "numeric",
+      })
     : "";
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-w-6xl w-[90vw] h-[90vh] flex flex-col p-0 gap-0">
+
+        {/* Header */}
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 min-w-0">
@@ -128,8 +87,11 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
           </div>
         </DialogHeader>
 
+        {/* Video area */}
         <div className="flex-1 min-h-0 relative bg-black flex flex-col">
+
           {noLink ? (
+            /* No link at all */
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
               <Video className="h-10 w-10 text-muted-foreground" />
               <p className="text-sm text-muted-foreground max-w-md">
@@ -142,12 +104,12 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
                 </a>
               </Button>
             </div>
+
           ) : status === "blocked" ? (
+            /* Load failed */
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
               <AlertCircle className="h-10 w-10 text-destructive" />
-              <p className="text-sm text-muted-foreground max-w-md">
-                Unable to load the video stream.
-              </p>
+              <p className="text-sm text-muted-foreground max-w-md">Unable to load this video.</p>
               <Button size="sm" variant="default" asChild>
                 <a href={meeting.video_url!} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
@@ -155,28 +117,44 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
                 </a>
               </Button>
             </div>
+
           ) : (
             <>
-              <div className="flex-1 min-h-0 relative">
-                {status === "loading" && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      <p className="text-sm text-white/70">Loading video…</p>
-                    </div>
+              {/* Loading spinner — shown until video metadata arrives or iframe loads */}
+              {status === "loading" && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    <p className="text-sm text-white/70">Loading video…</p>
                   </div>
-                )}
+                </div>
+              )}
 
+              {/* Video / iframe — fills available space */}
+              <div className="flex-1 min-h-0 relative">
                 {useNativeVideo ? (
+                  /*
+                   * Native <video> with direct MP4 from archive-stream.granicus.com.
+                   * Browsers load cross-origin media in no-cors mode — no CORS headers needed.
+                   * playbackRate is a standard DOM property; speed buttons work instantly.
+                   */
                   <video
                     ref={videoRef}
+                    src={streamUrl}
                     controls
                     className="w-full h-full bg-black"
-                    onPlay={() => {
+                    onLoadedMetadata={() => {
+                      setStatus("loaded");
                       if (videoRef.current) videoRef.current.playbackRate = speed;
                     }}
+                    onPlay={() => {
+                      // Re-enforce speed on every play (some browsers reset it)
+                      if (videoRef.current) videoRef.current.playbackRate = speed;
+                    }}
+                    onError={() => setStatus("blocked")}
                   />
                 ) : (
+                  /* Iframe fallback for meetings without a direct stream URL */
                   <iframe
                     ref={iframeRef}
                     src={meeting.video_url!}
@@ -193,23 +171,26 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
                 )}
               </div>
 
-              <div className="shrink-0 bg-black border-t border-white/10 px-4 py-2 flex items-center gap-1.5">
-                <Gauge className="h-3.5 w-3.5 text-white/40 mr-1 shrink-0" />
-                <span className="text-xs text-white/40 mr-2 shrink-0">Speed</span>
-                {SPEEDS.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => handleSpeedChange(s)}
-                    className={`text-xs px-2.5 py-1 rounded transition-colors font-mono ${
-                      speed === s
-                        ? "bg-white text-black font-semibold"
-                        : "text-white/55 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    {s === 1 ? "1×" : `${s}×`}
-                  </button>
-                ))}
-              </div>
+              {/* Speed control bar — only meaningful for native video */}
+              {useNativeVideo && (
+                <div className="shrink-0 bg-black border-t border-white/10 px-4 py-2 flex items-center gap-1.5">
+                  <Gauge className="h-3.5 w-3.5 text-white/40 mr-1 shrink-0" />
+                  <span className="text-xs text-white/40 mr-2 shrink-0">Speed</span>
+                  {SPEEDS.map(s => (
+                    <button
+                      key={s}
+                      onClick={() => handleSpeedChange(s)}
+                      className={`text-xs px-2.5 py-1 rounded transition-colors font-mono ${
+                        speed === s
+                          ? "bg-white text-black font-semibold"
+                          : "text-white/55 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      {s === 1 ? "1×" : `${s}×`}
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
