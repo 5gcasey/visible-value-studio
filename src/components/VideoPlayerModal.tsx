@@ -2,16 +2,22 @@ import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Video, AlertCircle, Gauge } from "lucide-react";
+import Hls from "hls.js";
 
 const CALENDAR = "https://lehi.granicus.com/ViewPublisher.php?view_id=1";
-const isFallback = (url: string | null) =>
+const isFallbackUrl = (url: string | null) =>
   !url || url === CALENDAR || url.includes("MediaPlayer.php") || url.includes("ViewPublisher");
 
 const SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const;
 type Speed = (typeof SPEEDS)[number];
 
 interface VideoPlayerModalProps {
-  meeting: { title: string; meeting_date: string | null; video_url: string | null } | null;
+  meeting: {
+    title: string;
+    meeting_date: string | null;
+    video_url: string | null;
+    video_stream_url?: string | null;
+  } | null;
   open: boolean;
   onClose: () => void;
 }
@@ -19,32 +25,83 @@ interface VideoPlayerModalProps {
 export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalProps) {
   const [status, setStatus] = useState<"loading" | "loaded" | "blocked">("loading");
   const [speed, setSpeed] = useState<Speed>(1);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const streamUrl = meeting?.video_stream_url ?? null;
+  const useNativeVideo = !!streamUrl;
+
+  // Native HLS video setup
   useEffect(() => {
-    if (!open) return;
+    if (!open || !useNativeVideo || !streamUrl) return;
+    const video = videoRef.current;
+    if (!video) return;
+
     setStatus("loading");
-    setSpeed(1);
+    if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+
+    if (Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: true });
+      hlsRef.current = hls;
+      hls.loadSource(streamUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setStatus("loaded");
+        video.playbackRate = speed;
+      });
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) setStatus("blocked");
+      });
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = streamUrl;
+      video.onloadedmetadata = () => {
+        setStatus("loaded");
+        video.playbackRate = speed;
+      };
+    } else {
+      setStatus("blocked");
+    }
+
+    return () => {
+      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+    };
+  }, [open, streamUrl]);
+
+  // Iframe fallback timeout
+  useEffect(() => {
+    if (!open || useNativeVideo) return;
+    setStatus("loading");
     timerRef.current = setTimeout(() => setStatus("blocked"), 12000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [open, meeting?.video_url]);
+  }, [open, meeting?.video_url, useNativeVideo]);
+
+  // Reset on close
+  useEffect(() => {
+    if (!open) {
+      setSpeed(1);
+      if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+    }
+  }, [open]);
 
   const handleSpeedChange = (newSpeed: Speed) => {
     setSpeed(newSpeed);
-    try {
-      iframeRef.current?.contentWindow?.postMessage(
-        { type: "setPlaybackRate", rate: newSpeed },
-        "https://lehi.granicus.com"
-      );
-    } catch {
-      // Cross-origin restriction — postMessage attempt failed silently
+    if (videoRef.current) {
+      videoRef.current.playbackRate = newSpeed;
+    } else {
+      try {
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: "setPlaybackRate", rate: newSpeed },
+          "https://lehi.granicus.com"
+        );
+      } catch { /* cross-origin */ }
     }
   };
 
   if (!meeting) return null;
 
-  const noLink = isFallback(meeting.video_url);
+  const noLink = isFallbackUrl(meeting.video_url) && !useNativeVideo;
   const dateStr = meeting.meeting_date
     ? new Date(meeting.meeting_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
     : "";
@@ -62,7 +119,7 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
             </div>
             {!noLink && (
               <Button size="sm" variant="ghost" asChild className="shrink-0">
-                <a href={meeting.video_url!} target="_blank" rel="noopener noreferrer">
+                <a href={meeting.video_url ?? meeting.video_stream_url ?? "#"} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                   Open full screen
                 </a>
@@ -76,7 +133,7 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
               <Video className="h-10 w-10 text-muted-foreground" />
               <p className="text-sm text-muted-foreground max-w-md">
-                The recording for this meeting hasn't been linked yet — it will be updated automatically within a day of the meeting.
+                The recording for this meeting hasn't been linked yet — check back within a day of the meeting.
               </p>
               <Button size="sm" variant="outline" asChild>
                 <a href={CALENDAR} target="_blank" rel="noopener noreferrer">
@@ -89,7 +146,7 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
               <AlertCircle className="h-10 w-10 text-destructive" />
               <p className="text-sm text-muted-foreground max-w-md">
-                Granicus is preventing the video from loading inside this page.
+                Unable to load the video stream.
               </p>
               <Button size="sm" variant="default" asChild>
                 <a href={meeting.video_url!} target="_blank" rel="noopener noreferrer">
@@ -109,19 +166,31 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
                     </div>
                   </div>
                 )}
-                <iframe
-                  ref={iframeRef}
-                  src={meeting.video_url!}
-                  title={`Video: ${meeting.title}`}
-                  className="w-full h-full border-0"
-                  sandbox="allow-scripts allow-same-origin allow-popups"
-                  allowFullScreen
-                  onLoad={() => {
-                    if (timerRef.current) clearTimeout(timerRef.current);
-                    setStatus("loaded");
-                  }}
-                  onError={() => setStatus("blocked")}
-                />
+
+                {useNativeVideo ? (
+                  <video
+                    ref={videoRef}
+                    controls
+                    className="w-full h-full bg-black"
+                    onPlay={() => {
+                      if (videoRef.current) videoRef.current.playbackRate = speed;
+                    }}
+                  />
+                ) : (
+                  <iframe
+                    ref={iframeRef}
+                    src={meeting.video_url!}
+                    title={`Video: ${meeting.title}`}
+                    className="w-full h-full border-0"
+                    sandbox="allow-scripts allow-same-origin allow-popups"
+                    allowFullScreen
+                    onLoad={() => {
+                      if (timerRef.current) clearTimeout(timerRef.current);
+                      setStatus("loaded");
+                    }}
+                    onError={() => setStatus("blocked")}
+                  />
+                )}
               </div>
 
               <div className="shrink-0 bg-black border-t border-white/10 px-4 py-2 flex items-center gap-1.5">
@@ -140,9 +209,6 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
                     {s === 1 ? "1×" : `${s}×`}
                   </button>
                 ))}
-                <span className="text-xs text-white/20 ml-auto hidden sm:block">
-                  Speed controls require Granicus player support
-                </span>
               </div>
             </>
           )}
