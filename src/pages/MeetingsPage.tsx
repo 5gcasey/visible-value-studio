@@ -5,6 +5,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { useCityConfig, useMeetings, useMeetingItems } from "@/hooks/use-data";
 import { ChevronDown, ChevronUp, ExternalLink, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { MeetingViewerModal } from "@/components/MeetingViewerModal";
 
 const meetingTypes = ["All Types", "city_council", "planning_commission", "rda", "board_of_adjustment", "special", "public_hearing"];
 const statusOptions = ["All", "scheduled", "completed", "cancelled"];
