@@ -23,6 +23,7 @@ function MeetingForm({ initial, onSubmit, onCancel }: { initial?: any; onSubmit:
     status: initial?.status ?? "scheduled",
     body: initial?.body ?? "",
     agenda_url: initial?.agenda_url ?? "",
+    video_url: initial?.video_url ?? "",
     minutes_url: initial?.minutes_url ?? "",
     packet_url: initial?.packet_url ?? "",
   });
