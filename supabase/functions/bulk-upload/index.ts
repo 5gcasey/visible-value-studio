@@ -32,19 +32,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Authenticate with service role key via Authorization header
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    // Simple API key auth via custom header
+    const apiKey = req.headers.get("x-api-key");
+    const expectedKey = Deno.env.get("BULK_UPLOAD_API_KEY");
+    
+    if (!expectedKey || apiKey !== expectedKey) {
       return new Response(
-        JSON.stringify({ error: "Missing Authorization header" }),
+        JSON.stringify({ error: "Invalid or missing x-api-key header" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const serviceRoleKey = authHeader.replace("Bearer ", "");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    if (!supabaseUrl) {
-      throw new Error("SUPABASE_URL not configured");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not configured");
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
