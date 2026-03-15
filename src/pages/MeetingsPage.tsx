@@ -85,7 +85,7 @@ function TruncatedBody({ text, limit = 200 }: { text: string; limit?: number }) 
   );
 }
 
-function MeetingCard({ meeting, isExpanded, onToggle }: { meeting: any; isExpanded: boolean; onToggle: () => void }) {
+function MeetingCard({ meeting, isExpanded, onToggle, onOpenViewer }: { meeting: any; isExpanded: boolean; onToggle: () => void; onOpenViewer: () => void }) {
   const { data: items } = useMeetingItems(isExpanded ? meeting.id : undefined);
   const isCancelled = meeting.status === "cancelled";
 
