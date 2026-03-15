@@ -100,7 +100,7 @@ export function useTableMutation(
   const invalidate = () => invalidateKeys.forEach((k) => qc.invalidateQueries({ queryKey: k }));
 
   const insert = useMutation({
-    mutationFn: async (row: TInsert) => {
+    mutationFn: async (row: Record<string, any>) => {
       const { data, error } = await (supabase.from(tableName) as any).insert(row).select().single();
       if (error) throw error;
       return data;
