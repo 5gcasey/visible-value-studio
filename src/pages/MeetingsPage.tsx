@@ -58,10 +58,16 @@ export default function MeetingsPage() {
             <div className="rounded-lg border bg-card p-12 text-center text-muted-foreground">No meetings found matching your filters.</div>
           )}
           {filtered.map((meeting) => (
-            <MeetingCard key={meeting.id} meeting={meeting} isExpanded={expandedId === meeting.id} onToggle={() => setExpandedId(expandedId === meeting.id ? null : meeting.id)} />
+            <MeetingCard key={meeting.id} meeting={meeting} isExpanded={expandedId === meeting.id} onToggle={() => setExpandedId(expandedId === meeting.id ? null : meeting.id)} onOpenViewer={() => { setSelectedMeeting(meeting); setViewerOpen(true); }} />
           ))}
         </div>
       </section>
+
+      <MeetingViewerModal
+        meeting={selectedMeeting}
+        open={viewerOpen}
+        onClose={() => { setViewerOpen(false); setSelectedMeeting(null); }}
+      />
     </SiteLayout>
   );
 }
