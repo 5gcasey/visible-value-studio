@@ -91,7 +91,7 @@ export function useAdminSystemLog() {
 
 // Generic mutation hook
 export function useTableMutation(
-  tableName: string,
+  tableName: TableName,
   invalidateKeys: string[][]
 ) {
   const qc = useQueryClient();
