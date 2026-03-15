@@ -5,6 +5,7 @@ import { PriorityBadge } from "@/components/PriorityBadge";
 import { useCityConfig, useMeetings, useMeetingItems } from "@/hooks/use-data";
 import { ChevronDown, ChevronUp, ExternalLink, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { MeetingViewerModal } from "@/components/MeetingViewerModal";
 
 const meetingTypes = ["All Types", "city_council", "planning_commission", "rda", "board_of_adjustment", "special", "public_hearing"];
 const statusOptions = ["All", "scheduled", "completed", "cancelled"];
@@ -14,6 +15,8 @@ export default function MeetingsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const { data: config } = useCityConfig();
   const { data: meetings, isLoading } = useMeetings();
 
@@ -55,10 +58,16 @@ export default function MeetingsPage() {
             <div className="rounded-lg border bg-card p-12 text-center text-muted-foreground">No meetings found matching your filters.</div>
           )}
           {filtered.map((meeting) => (
-            <MeetingCard key={meeting.id} meeting={meeting} isExpanded={expandedId === meeting.id} onToggle={() => setExpandedId(expandedId === meeting.id ? null : meeting.id)} />
+            <MeetingCard key={meeting.id} meeting={meeting} isExpanded={expandedId === meeting.id} onToggle={() => setExpandedId(expandedId === meeting.id ? null : meeting.id)} onOpenViewer={() => { setSelectedMeeting(meeting); setViewerOpen(true); }} />
           ))}
         </div>
       </section>
+
+      <MeetingViewerModal
+        meeting={selectedMeeting}
+        open={viewerOpen}
+        onClose={() => { setViewerOpen(false); setSelectedMeeting(null); }}
+      />
     </SiteLayout>
   );
 }
@@ -76,7 +85,7 @@ function TruncatedBody({ text, limit = 200 }: { text: string; limit?: number }) 
   );
 }
 
-function MeetingCard({ meeting, isExpanded, onToggle }: { meeting: any; isExpanded: boolean; onToggle: () => void }) {
+function MeetingCard({ meeting, isExpanded, onToggle, onOpenViewer }: { meeting: any; isExpanded: boolean; onToggle: () => void; onOpenViewer: () => void }) {
   const { data: items } = useMeetingItems(isExpanded ? meeting.id : undefined);
   const isCancelled = meeting.status === "cancelled";
 
@@ -101,13 +110,16 @@ function MeetingCard({ meeting, isExpanded, onToggle }: { meeting: any; isExpand
           {meeting.body && <TruncatedBody text={meeting.body} />}
           {!isCancelled && (
             <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={(e) => { e.stopPropagation(); onOpenViewer(); }} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                View Details
+              </button>
               {meeting.agenda_url && (
                 <a href={meeting.agenda_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
                   📋 View Agenda <ExternalLink className="h-3 w-3" />
                 </a>
               )}
-              {meeting.video_url && (
-                <a href={meeting.video_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
+              {(meeting as any).video_url && (
+                <a href={(meeting as any).video_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
                   ▶ Watch Video <ExternalLink className="h-3 w-3" />
                 </a>
               )}
