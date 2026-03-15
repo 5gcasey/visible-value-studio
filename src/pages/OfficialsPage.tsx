@@ -19,27 +19,24 @@ const roleFilters = ["All", "elected", "appointed", "staff"];
 
 function OfficialCard({ official }: { official: any }) {
   return (
-    <Link to={`/officials/${official.slug}`} className="group rounded-lg border bg-card p-6 transition-shadow duration-150 hover:shadow-md">
-      <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
+    <Link to={`/officials/${official.slug}`} className="group flex flex-col justify-between rounded-lg border bg-card p-5 transition-shadow duration-150 hover:shadow-md h-full">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
           {getInitials(official.name)}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-card-foreground group-hover:text-primary">{official.name}</h3>
-          <p className="text-sm text-muted-foreground">{official.title}</p>
-          <p className="text-xs text-muted-foreground">{official.department}</p>
-          <div className="mt-2">
+          <h3 className="font-semibold text-card-foreground group-hover:text-primary leading-tight truncate">{official.name}</h3>
+          <p className="text-sm text-muted-foreground truncate">{official.title}</p>
+          <p className="text-xs text-muted-foreground truncate">{official.department}</p>
+          <div className="mt-1.5">
             <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeStyles[official.role || "staff"]}`}>
               {official.role?.charAt(0).toUpperCase()}{official.role?.slice(1)}
             </span>
           </div>
         </div>
       </div>
-      <div className="mt-4 flex items-center justify-between text-sm">
-        {official.contact_email && (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3" /> {official.contact_email}</span>
-        )}
-        <span className="ml-auto text-xs font-medium text-primary group-hover:underline">View Profile →</span>
+      <div className="mt-3 flex items-center justify-end text-sm">
+        <span className="text-xs font-medium text-primary group-hover:underline">View Profile →</span>
       </div>
     </Link>
   );
@@ -95,11 +92,11 @@ export default function OfficialsPage() {
             <>
               {/* Elected Officials — Pyramid */}
               {elected.length > 0 && (
-                <div className="mb-8">
+                <div className="mb-8 max-w-3xl mx-auto">
                   {/* Row 1: Mayor centered */}
                   {mayor.length > 0 && (
-                    <div className="flex justify-center mb-6">
-                      <div className="w-full max-w-xs">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="col-start-2">
                         <OfficialCard official={mayor[0]} />
                       </div>
                     </div>
@@ -107,19 +104,16 @@ export default function OfficialsPage() {
 
                   {/* Row 2: 3 council members */}
                   {row2.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                    <div className="grid grid-cols-3 gap-4 mb-4">
                       {row2.map((o) => <OfficialCard key={o.id} official={o} />)}
                     </div>
                   )}
 
                   {/* Row 3: 2 council members centered */}
                   {row3.length > 0 && (
-                    <div className="flex justify-center gap-4 mb-8">
-                      {row3.map((o) => (
-                        <div key={o.id} className="w-full max-w-xs">
-                          <OfficialCard official={o} />
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-3 gap-4 mb-8">
+                      <div className="col-start-1 col-span-1"><OfficialCard official={row3[0]} /></div>
+                      {row3[1] && <div className="col-start-3 col-span-1"><OfficialCard official={row3[1]} /></div>}
                     </div>
                   )}
                 </div>
