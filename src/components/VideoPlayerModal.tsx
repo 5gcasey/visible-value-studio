@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Video, AlertCircle } from "lucide-react";
+import { ExternalLink, Video, AlertCircle, Gauge } from "lucide-react";
 
 const CALENDAR = "https://lehi.granicus.com/ViewPublisher.php?view_id=1";
-const isFallback = (url: string | null) => !url || url === CALENDAR;
+const isFallback = (url: string | null) =>
+  !url || url === CALENDAR || url.includes("MediaPlayer.php") || url.includes("ViewPublisher");
+
+const SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const;
+type Speed = (typeof SPEEDS)[number];
 
 interface VideoPlayerModalProps {
   meeting: { title: string; meeting_date: string | null; video_url: string | null } | null;
@@ -14,14 +18,29 @@ interface VideoPlayerModalProps {
 
 export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalProps) {
   const [status, setStatus] = useState<"loading" | "loaded" | "blocked">("loading");
+  const [speed, setSpeed] = useState<Speed>(1);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setStatus("loading");
+    setSpeed(1);
     timerRef.current = setTimeout(() => setStatus("blocked"), 12000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [open, meeting?.video_url]);
+
+  const handleSpeedChange = (newSpeed: Speed) => {
+    setSpeed(newSpeed);
+    try {
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: "setPlaybackRate", rate: newSpeed },
+        "https://lehi.granicus.com"
+      );
+    } catch {
+      // Cross-origin restriction — postMessage attempt failed silently
+    }
+  };
 
   if (!meeting) return null;
 
@@ -45,14 +64,14 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
               <Button size="sm" variant="ghost" asChild className="shrink-0">
                 <a href={meeting.video_url!} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                  Open in Granicus
+                  Open full screen
                 </a>
               </Button>
             )}
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 relative bg-black">
+        <div className="flex-1 min-h-0 relative bg-black flex flex-col">
           {noLink ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
               <Video className="h-10 w-10 text-muted-foreground" />
@@ -75,32 +94,56 @@ export function VideoPlayerModal({ meeting, open, onClose }: VideoPlayerModalPro
               <Button size="sm" variant="default" asChild>
                 <a href={meeting.video_url!} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                  Watch on Granicus
+                  Watch in new tab
                 </a>
               </Button>
             </div>
           ) : (
             <>
-              {status === "loading" && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-white/70">Loading video…</p>
+              <div className="flex-1 min-h-0 relative">
+                {status === "loading" && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <p className="text-sm text-white/70">Loading video…</p>
+                    </div>
                   </div>
-                </div>
-              )}
-              <iframe
-                src={meeting.video_url!}
-                title={`Video: ${meeting.title}`}
-                className="w-full h-full border-0"
-                sandbox="allow-scripts allow-same-origin allow-popups"
-                allowFullScreen
-                onLoad={() => {
-                  if (timerRef.current) clearTimeout(timerRef.current);
-                  setStatus("loaded");
-                }}
-                onError={() => setStatus("blocked")}
-              />
+                )}
+                <iframe
+                  ref={iframeRef}
+                  src={meeting.video_url!}
+                  title={`Video: ${meeting.title}`}
+                  className="w-full h-full border-0"
+                  sandbox="allow-scripts allow-same-origin allow-popups"
+                  allowFullScreen
+                  onLoad={() => {
+                    if (timerRef.current) clearTimeout(timerRef.current);
+                    setStatus("loaded");
+                  }}
+                  onError={() => setStatus("blocked")}
+                />
+              </div>
+
+              <div className="shrink-0 bg-black border-t border-white/10 px-4 py-2 flex items-center gap-1.5">
+                <Gauge className="h-3.5 w-3.5 text-white/40 mr-1 shrink-0" />
+                <span className="text-xs text-white/40 mr-2 shrink-0">Speed</span>
+                {SPEEDS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => handleSpeedChange(s)}
+                    className={`text-xs px-2.5 py-1 rounded transition-colors font-mono ${
+                      speed === s
+                        ? "bg-white text-black font-semibold"
+                        : "text-white/55 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {s === 1 ? "1×" : `${s}×`}
+                  </button>
+                ))}
+                <span className="text-xs text-white/20 ml-auto hidden sm:block">
+                  Speed controls require Granicus player support
+                </span>
+              </div>
             </>
           )}
         </div>
