@@ -1,1 +1,4 @@
 project_id = "wskksvodmylwvopbhtpf"
+
+[functions.granicus-proxy]
+verify_jwt = false
