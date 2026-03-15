@@ -110,13 +110,16 @@ function MeetingCard({ meeting, isExpanded, onToggle, onOpenViewer }: { meeting:
           {meeting.body && <TruncatedBody text={meeting.body} />}
           {!isCancelled && (
             <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={(e) => { e.stopPropagation(); onOpenViewer(); }} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                View Details
+              </button>
               {meeting.agenda_url && (
                 <a href={meeting.agenda_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
                   📋 View Agenda <ExternalLink className="h-3 w-3" />
                 </a>
               )}
-              {meeting.video_url && (
-                <a href={meeting.video_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
+              {(meeting as any).video_url && (
+                <a href={(meeting as any).video_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
                   ▶ Watch Video <ExternalLink className="h-3 w-3" />
                 </a>
               )}
