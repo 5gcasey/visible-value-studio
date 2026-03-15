@@ -2,10 +2,15 @@ import { useState } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PriorityBadge } from "@/components/PriorityBadge";
-import { useCityConfig, useMeetings, useMeetingItems } from "@/hooks/use-data";
-import { ChevronDown, ChevronUp, ExternalLink, Search } from "lucide-react";
+import { useCityConfig, useMeetingItems } from "@/hooks/use-data";
+import { ChevronDown, ChevronUp, Search, FileText, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { MeetingViewerModal } from "@/components/MeetingViewerModal";
+import { Button } from "@/components/ui/button";
+import { MeetingDetailModal } from "@/components/MeetingDetailModal";
+import { AgendaViewerModal } from "@/components/AgendaViewerModal";
+import { VideoPlayerModal } from "@/components/VideoPlayerModal";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const meetingTypes = ["All Types", "city_council", "planning_commission", "rda", "board_of_adjustment", "special", "public_hearing"];
 const statusOptions = ["All", "scheduled", "completed", "cancelled"];
@@ -15,10 +20,23 @@ export default function MeetingsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [selectedMeeting, setSelectedMeeting] = useState<any>(null);
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const [detailMeeting, setDetailMeeting] = useState<any>(null);
+  const [agendaMeeting, setAgendaMeeting] = useState<any>(null);
+  const [videoMeeting, setVideoMeeting] = useState<any>(null);
   const { data: config } = useCityConfig();
-  const { data: meetings, isLoading } = useMeetings();
+
+  const { data: meetings, isLoading } = useQuery({
+    queryKey: ["meetings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("meetings")
+        .select("id, title, body, executive_summary, meeting_date, meeting_type, location, status, agenda_url, video_url, minutes_url, transcript_url, transcript_text")
+        .order("meeting_date", { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const filtered = (meetings ?? []).filter((m) => {
     if (typeFilter !== "All Types" && m.meeting_type !== typeFilter) return false;
@@ -58,15 +76,33 @@ export default function MeetingsPage() {
             <div className="rounded-lg border bg-card p-12 text-center text-muted-foreground">No meetings found matching your filters.</div>
           )}
           {filtered.map((meeting) => (
-            <MeetingCard key={meeting.id} meeting={meeting} isExpanded={expandedId === meeting.id} onToggle={() => setExpandedId(expandedId === meeting.id ? null : meeting.id)} onOpenViewer={() => { setSelectedMeeting(meeting); setViewerOpen(true); }} />
+            <MeetingCard
+              key={meeting.id}
+              meeting={meeting}
+              isExpanded={expandedId === meeting.id}
+              onToggle={() => setExpandedId(expandedId === meeting.id ? null : meeting.id)}
+              onViewDetails={() => setDetailMeeting(meeting)}
+              onViewAgenda={() => setAgendaMeeting(meeting)}
+              onWatchVideo={() => setVideoMeeting(meeting)}
+            />
           ))}
         </div>
       </section>
 
-      <MeetingViewerModal
-        meeting={selectedMeeting}
-        open={viewerOpen}
-        onClose={() => { setViewerOpen(false); setSelectedMeeting(null); }}
+      <MeetingDetailModal
+        meeting={detailMeeting}
+        open={!!detailMeeting}
+        onClose={() => setDetailMeeting(null)}
+      />
+      <AgendaViewerModal
+        meeting={agendaMeeting}
+        open={!!agendaMeeting}
+        onClose={() => setAgendaMeeting(null)}
+      />
+      <VideoPlayerModal
+        meeting={videoMeeting}
+        open={!!videoMeeting}
+        onClose={() => setVideoMeeting(null)}
       />
     </SiteLayout>
   );
@@ -85,7 +121,14 @@ function TruncatedBody({ text, limit = 200 }: { text: string; limit?: number }) 
   );
 }
 
-function MeetingCard({ meeting, isExpanded, onToggle, onOpenViewer }: { meeting: any; isExpanded: boolean; onToggle: () => void; onOpenViewer: () => void }) {
+function MeetingCard({ meeting, isExpanded, onToggle, onViewDetails, onViewAgenda, onWatchVideo }: {
+  meeting: any;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onViewDetails: () => void;
+  onViewAgenda: () => void;
+  onWatchVideo: () => void;
+}) {
   const { data: items } = useMeetingItems(isExpanded ? meeting.id : undefined);
   const isCancelled = meeting.status === "cancelled";
 
@@ -110,23 +153,20 @@ function MeetingCard({ meeting, isExpanded, onToggle, onOpenViewer }: { meeting:
           {meeting.body && <TruncatedBody text={meeting.body} />}
           {!isCancelled && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <button onClick={(e) => { e.stopPropagation(); onOpenViewer(); }} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+              <Button size="sm" onClick={(e) => { e.stopPropagation(); onViewDetails(); }}>
                 View Details
-              </button>
+              </Button>
               {meeting.agenda_url && (
-                <a href={meeting.agenda_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
-                  📋 View Agenda <ExternalLink className="h-3 w-3" />
-                </a>
+                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onViewAgenda(); }}>
+                  <FileText className="h-3.5 w-3.5 mr-1.5" />
+                  View Agenda
+                </Button>
               )}
               {meeting.video_url && (
-                <a href={meeting.video_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
-                  ▶ Watch Video <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-              {meeting.minutes_url && (
-                <a href={meeting.minutes_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors">
-                  📄 Minutes <ExternalLink className="h-3 w-3" />
-                </a>
+                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onWatchVideo(); }}>
+                  <Video className="h-3.5 w-3.5 mr-1.5" />
+                  Watch Video
+                </Button>
               )}
             </div>
           )}
