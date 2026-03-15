@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { PriorityBadge } from "@/components/PriorityBadge";
-import { cityConfig, mockMeetings, mockMeetingItems } from "@/lib/mock-data";
+import { useCityConfig, useMeetings, useMeetingItems } from "@/hooks/use-data";
 import { ChevronDown, ChevronUp, ExternalLink, Search } from "lucide-react";
 
 function formatDate(dateStr: string) {
@@ -17,8 +17,10 @@ export default function MeetingsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data: config } = useCityConfig();
+  const { data: meetings, isLoading } = useMeetings();
 
-  const filtered = mockMeetings.filter((m) => {
+  const filtered = (meetings ?? []).filter((m) => {
     if (typeFilter !== "All Types" && m.meeting_type !== typeFilter) return false;
     if (statusFilter !== "All" && m.status !== statusFilter) return false;
     if (searchQuery && !m.title.toLowerCase().includes(searchQuery.toLowerCase()) && !m.body?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
@@ -30,11 +32,10 @@ export default function MeetingsPage() {
       <section className="bg-primary py-10">
         <div className="container">
           <h1 className="text-3xl font-bold text-primary-foreground">Public Meetings & Notices</h1>
-          <p className="mt-2 text-primary-foreground/70">{cityConfig.city_name}, {cityConfig.city_state}</p>
+          <p className="mt-2 text-primary-foreground/70">{config?.city_name}, {config?.city_state}</p>
         </div>
       </section>
 
-      {/* Filter Bar */}
       <section className="sticky top-16 z-40 border-b bg-background py-4">
         <div className="container flex flex-wrap gap-3">
           <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
@@ -50,71 +51,74 @@ export default function MeetingsPage() {
         </div>
       </section>
 
-      {/* Meeting List */}
       <section className="py-8">
         <div className="container space-y-4">
-          {filtered.length === 0 && (
-            <div className="rounded-lg border bg-card p-12 text-center">
-              <p className="text-muted-foreground">No meetings found matching your filters.</p>
-            </div>
+          {isLoading && <div className="text-center text-muted-foreground py-12">Loading meetings...</div>}
+          {!isLoading && filtered.length === 0 && (
+            <div className="rounded-lg border bg-card p-12 text-center text-muted-foreground">No meetings found matching your filters.</div>
           )}
-          {filtered.map((meeting) => {
-            const items = mockMeetingItems.filter((i) => i.meeting_id === meeting.id);
-            const isExpanded = expandedId === meeting.id;
-            return (
-              <div key={meeting.id} className="rounded-lg border bg-card transition-shadow duration-150 hover:shadow-md">
-                <button onClick={() => setExpandedId(isExpanded ? null : meeting.id)} className="flex w-full items-center gap-4 p-5 text-left">
-                  <div className="text-center min-w-[60px]">
-                    <p className="text-xs font-medium uppercase text-muted-foreground">{new Date(meeting.meeting_date).toLocaleDateString("en-US", { month: "short" })}</p>
-                    <p className="text-2xl font-bold text-foreground">{new Date(meeting.meeting_date).getDate()}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(meeting.meeting_date).getFullYear()}</p>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-card-foreground">{meeting.title}</h3>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground capitalize">{meeting.meeting_type?.replace("_", " ")}</span>
-                      <span className="text-xs text-muted-foreground">• {meeting.location}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {meeting.agenda_url && <span className="rounded bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">📄 Agenda</span>}
-                    {meeting.minutes_url && <span className="rounded bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">📋 Minutes</span>}
-                    {meeting.packet_url && <span className="rounded bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">📦 Packet</span>}
-                    <StatusBadge status={meeting.status} />
-                    {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                  </div>
-                </button>
-
-                {isExpanded && items.length > 0 && (
-                  <div className="border-t px-5 py-4">
-                    <h4 className="mb-3 text-sm font-semibold text-foreground">Agenda Items</h4>
-                    <div className="space-y-4">
-                      {items.map((item) => (
-                        <AgendaItem key={item.id} item={item} />
-                      ))}
-                    </div>
-                    {meeting.agenda_url && (
-                      <a href={meeting.agenda_url} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-                        View Full Agenda <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                    )}
-                  </div>
-                )}
-                {isExpanded && items.length === 0 && (
-                  <div className="border-t px-5 py-4 text-sm text-muted-foreground">
-                    No agenda items available for this meeting.
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {filtered.map((meeting) => (
+            <MeetingCard key={meeting.id} meeting={meeting} isExpanded={expandedId === meeting.id} onToggle={() => setExpandedId(expandedId === meeting.id ? null : meeting.id)} />
+          ))}
         </div>
       </section>
     </SiteLayout>
   );
 }
 
-function AgendaItem({ item }: { item: typeof mockMeetingItems[0] }) {
+function MeetingCard({ meeting, isExpanded, onToggle }: { meeting: any; isExpanded: boolean; onToggle: () => void }) {
+  const { data: items } = useMeetingItems(isExpanded ? meeting.id : undefined);
+
+  return (
+    <div className="rounded-lg border bg-card transition-shadow duration-150 hover:shadow-md">
+      <button onClick={onToggle} className="flex w-full items-center gap-4 p-5 text-left">
+        <div className="text-center min-w-[60px]">
+          <p className="text-xs font-medium uppercase text-muted-foreground">{meeting.meeting_date ? new Date(meeting.meeting_date).toLocaleDateString("en-US", { month: "short" }) : ""}</p>
+          <p className="text-2xl font-bold text-foreground">{meeting.meeting_date ? new Date(meeting.meeting_date).getDate() : ""}</p>
+          <p className="text-xs text-muted-foreground">{meeting.meeting_date ? new Date(meeting.meeting_date).getFullYear() : ""}</p>
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold text-card-foreground">{meeting.title}</h3>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground capitalize">{meeting.meeting_type?.replace("_", " ")}</span>
+            <span className="text-xs text-muted-foreground">• {meeting.location}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {meeting.agenda_url && <span className="rounded bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">📄 Agenda</span>}
+          {meeting.minutes_url && <span className="rounded bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">📋 Minutes</span>}
+          {meeting.packet_url && <span className="rounded bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">📦 Packet</span>}
+          <StatusBadge status={meeting.status ?? "scheduled"} />
+          {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="border-t px-5 py-4">
+          {items && items.length > 0 ? (
+            <>
+              <h4 className="mb-3 text-sm font-semibold text-foreground">Agenda Items</h4>
+              <div className="space-y-4">
+                {items.map((item) => (
+                  <AgendaItem key={item.id} item={item} />
+                ))}
+              </div>
+              {meeting.agenda_url && (
+                <a href={meeting.agenda_url} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+                  View Full Agenda <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">No agenda items available for this meeting.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AgendaItem({ item }: { item: any }) {
   const [open, setOpen] = useState(false);
   const analysis = [
     { label: "What is the issue?", content: item.what_is_issue },
@@ -128,7 +132,7 @@ function AgendaItem({ item }: { item: typeof mockMeetingItems[0] }) {
     <div className="rounded-lg border bg-section p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <PriorityBadge priority={item.priority} />
+          <PriorityBadge priority={item.priority ?? "medium"} />
           <h5 className="font-medium text-foreground">{item.item_title}</h5>
         </div>
         <button onClick={() => setOpen(!open)} className="text-sm font-medium text-primary hover:underline">

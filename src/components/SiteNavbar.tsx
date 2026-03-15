@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Menu, X, AlertTriangle } from "lucide-react";
-import { cityConfig, mockHighPriorityFlags } from "@/lib/mock-data";
+import { useCityConfig, useHighPriorityFlags } from "@/hooks/use-data";
 
 const navLinks = [
   { label: "Meetings", href: "/meetings" },
@@ -15,22 +15,22 @@ const navLinks = [
 export function SiteNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-  const alertCount = mockHighPriorityFlags.filter((f) => !f.resolved).length;
+  const { data: config } = useCityConfig();
+  const { data: flags } = useHighPriorityFlags();
+  const alertCount = flags?.length ?? 0;
 
   return (
     <header className="sticky top-0 z-50 bg-primary shadow-md">
       <div className="container flex h-16 items-center justify-between">
-        {/* Logo */}
         <Link to="/" className="flex flex-col leading-tight">
           <span className="text-lg font-extrabold uppercase tracking-wide text-primary-foreground">
-            {cityConfig.display_name}
+            {config?.display_name ?? "Open Cities"}
           </span>
           <span className="hidden text-[10px] text-primary-foreground/70 sm:block">
-            {cityConfig.tagline}
+            {config?.tagline}
           </span>
         </Link>
 
-        {/* Desktop nav */}
         <nav className="hidden items-center gap-1 lg:flex">
           {navLinks.map((link) => (
             <Link
@@ -47,7 +47,6 @@ export function SiteNavbar() {
           ))}
         </nav>
 
-        {/* Right side */}
         <div className="flex items-center gap-3">
           {alertCount > 0 && (
             <Link
@@ -64,8 +63,6 @@ export function SiteNavbar() {
           >
             About
           </Link>
-
-          {/* Mobile toggle */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="rounded-md p-2 text-primary-foreground lg:hidden"
@@ -76,7 +73,6 @@ export function SiteNavbar() {
         </div>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
         <div className="border-t border-primary-foreground/10 bg-primary lg:hidden">
           <nav className="container flex flex-col gap-1 py-4">

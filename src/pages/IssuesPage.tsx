@@ -3,7 +3,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { PriorityBadge } from "@/components/PriorityBadge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CategoryBadge } from "@/components/CategoryBadge";
-import { cityConfig, mockIssues } from "@/lib/mock-data";
+import { useCityConfig, useIssues } from "@/hooks/use-data";
 import { Search, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 
 function formatDate(dateStr: string) {
@@ -20,38 +20,39 @@ export default function IssuesPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data: config } = useCityConfig();
+  const { data: issues, isLoading } = useIssues();
 
-  const filtered = mockIssues.filter((i) => {
+  const allIssues = issues ?? [];
+  const filtered = allIssues.filter((i) => {
     if (priorityFilter !== "All" && i.priority !== priorityFilter) return false;
     if (categoryFilter !== "All" && i.category !== categoryFilter) return false;
     if (statusFilter !== "All" && i.status !== statusFilter) return false;
-    if (searchQuery && !i.title.toLowerCase().includes(searchQuery.toLowerCase()) && !i.summary.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (searchQuery && !i.title.toLowerCase().includes(searchQuery.toLowerCase()) && !i.summary?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
 
-  const countByPriority = (p: string) => mockIssues.filter((i) => i.priority === p).length;
+  const countByPriority = (p: string) => allIssues.filter((i) => i.priority === p).length;
 
   return (
     <SiteLayout>
       <section className="bg-primary py-10">
         <div className="container">
           <h1 className="text-3xl font-bold text-primary-foreground">Issues Tracker</h1>
-          <p className="mt-2 text-primary-foreground/70">Documented issues facing {cityConfig.city_name} residents</p>
+          <p className="mt-2 text-primary-foreground/70">Documented issues facing {config?.city_name} residents</p>
         </div>
       </section>
 
-      {/* Stats */}
       <section className="border-b bg-background py-4">
         <div className="container flex flex-wrap gap-6 text-sm">
-          <span className="font-medium text-foreground">Total: {mockIssues.length}</span>
+          <span className="font-medium text-foreground">Total: {allIssues.length}</span>
           <span className="font-medium text-destructive">Critical: {countByPriority("critical")}</span>
           <span className="font-medium text-warning">High: {countByPriority("high")}</span>
           <span className="font-medium text-accent-foreground">Medium: {countByPriority("medium")}</span>
-          <span className="font-medium text-foreground">Open: {mockIssues.filter((i) => i.status === "open").length}</span>
+          <span className="font-medium text-foreground">Open: {allIssues.filter((i) => i.status === "open").length}</span>
         </div>
       </section>
 
-      {/* Filters */}
       <section className="sticky top-16 z-40 border-b bg-background py-4">
         <div className="container flex flex-wrap gap-3">
           <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="rounded-lg border bg-background px-3 py-2 text-sm">
@@ -70,10 +71,10 @@ export default function IssuesPage() {
         </div>
       </section>
 
-      {/* Issue Cards */}
       <section className="py-8">
         <div className="container space-y-4">
-          {filtered.length === 0 && (
+          {isLoading && <div className="text-center text-muted-foreground py-12">Loading issues...</div>}
+          {!isLoading && filtered.length === 0 && (
             <div className="rounded-lg border bg-card p-12 text-center text-muted-foreground">No issues found matching your filters.</div>
           )}
           {filtered.map((issue) => {
@@ -92,17 +93,17 @@ export default function IssuesPage() {
               low: "border-l-priority-low",
             };
             return (
-              <div key={issue.id} className={`rounded-lg border border-l-4 ${priorityBorderColor[issue.priority] || ""} bg-card`}>
+              <div key={issue.id} className={`rounded-lg border border-l-4 ${priorityBorderColor[issue.priority ?? "medium"] || ""} bg-card`}>
                 <button onClick={() => setExpandedId(isExpanded ? null : issue.id)} className="w-full p-5 text-left">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <PriorityBadge priority={issue.priority} />
-                    <CategoryBadge category={issue.category} />
-                    <StatusBadge status={issue.status} />
+                    <PriorityBadge priority={issue.priority ?? "medium"} />
+                    {issue.category && <CategoryBadge category={issue.category} />}
+                    <StatusBadge status={issue.status ?? "open"} />
                   </div>
                   <h3 className="text-lg font-semibold text-card-foreground">{issue.title}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{issue.summary}</p>
                   <div className="mt-3 flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{formatDate(issue.created_at)}</span>
+                    <span className="text-xs text-muted-foreground">{issue.created_at ? formatDate(issue.created_at) : ""}</span>
                     <span className="flex items-center gap-1 text-xs font-medium text-primary">
                       {isExpanded ? "Hide" : "5-Point Analysis"}
                       {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
