@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { SiteLayout } from "@/components/SiteLayout";
 import { useCityConfig, useOfficials } from "@/hooks/use-data";
 import { Mail } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase();
@@ -16,12 +17,53 @@ const roleBadgeStyles: Record<string, string> = {
 
 const roleFilters = ["All", "elected", "appointed", "staff"];
 
+function OfficialCard({ official }: { official: any }) {
+  return (
+    <Link to={`/officials/${official.slug}`} className="group rounded-lg border bg-card p-6 transition-shadow duration-150 hover:shadow-md">
+      <div className="flex items-start gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
+          {getInitials(official.name)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-card-foreground group-hover:text-primary">{official.name}</h3>
+          <p className="text-sm text-muted-foreground">{official.title}</p>
+          <p className="text-xs text-muted-foreground">{official.department}</p>
+          <div className="mt-2">
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeStyles[official.role || "staff"]}`}>
+              {official.role?.charAt(0).toUpperCase()}{official.role?.slice(1)}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between text-sm">
+        {official.contact_email && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3" /> {official.contact_email}</span>
+        )}
+        <span className="ml-auto text-xs font-medium text-primary group-hover:underline">View Profile →</span>
+      </div>
+    </Link>
+  );
+}
+
 export default function OfficialsPage() {
   const [roleFilter, setRoleFilter] = useState("All");
   const { data: config } = useCityConfig();
   const { data: officials, isLoading } = useOfficials();
 
-  const filtered = (officials ?? []).filter((o) => {
+  const all = officials ?? [];
+
+  // Groups by sort_order
+  const elected = all.filter((o) => (o.sort_order ?? 999) >= 1 && (o.sort_order ?? 999) <= 21);
+  const staff = all.filter((o) => (o.sort_order ?? 999) >= 100 && (o.sort_order ?? 999) <= 128);
+  const planning = all.filter((o) => (o.sort_order ?? 999) >= 200);
+
+  // Pyramid breakdown
+  const mayor = elected.filter((o) => (o.sort_order ?? 999) === 1);
+  const row2 = elected.filter((o) => (o.sort_order ?? 999) >= 10 && (o.sort_order ?? 999) <= 12);
+  const row3 = elected.filter((o) => (o.sort_order ?? 999) >= 20 && (o.sort_order ?? 999) <= 21);
+
+  // Filtered for non-All tabs
+  const filtered = all.filter((o) => {
     if (roleFilter !== "All" && o.role !== roleFilter) return false;
     return true;
   });
@@ -46,33 +88,75 @@ export default function OfficialsPage() {
       </section>
 
       <section className="py-8">
-        <div className="container grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {isLoading && <div className="col-span-full text-center text-muted-foreground py-12">Loading officials...</div>}
-          {filtered.map((official) => (
-            <Link key={official.id} to={`/officials/${official.slug}`} className="group rounded-lg border bg-card p-6 transition-shadow duration-150 hover:shadow-md">
-              <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-                  {getInitials(official.name)}
+        <div className="container">
+          {isLoading && <div className="text-center text-muted-foreground py-12">Loading officials...</div>}
+
+          {!isLoading && roleFilter === "All" && (
+            <>
+              {/* Elected Officials — Pyramid */}
+              {elected.length > 0 && (
+                <div className="mb-8">
+                  {/* Row 1: Mayor centered */}
+                  {mayor.length > 0 && (
+                    <div className="flex justify-center mb-6">
+                      <div className="w-full max-w-xs">
+                        <OfficialCard official={mayor[0]} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Row 2: 3 council members */}
+                  {row2.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                      {row2.map((o) => <OfficialCard key={o.id} official={o} />)}
+                    </div>
+                  )}
+
+                  {/* Row 3: 2 council members centered */}
+                  {row3.length > 0 && (
+                    <div className="flex justify-center gap-4 mb-8">
+                      {row3.map((o) => (
+                        <div key={o.id} className="w-full max-w-xs">
+                          <OfficialCard official={o} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-card-foreground group-hover:text-primary">{official.name}</h3>
-                  <p className="text-sm text-muted-foreground">{official.title}</p>
-                  <p className="text-xs text-muted-foreground">{official.department}</p>
-                  <div className="mt-2">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeStyles[official.role || "staff"]}`}>
-                      {official.role?.charAt(0).toUpperCase()}{official.role?.slice(1)}
-                    </span>
+              )}
+
+              {/* City Staff */}
+              {staff.length > 0 && (
+                <>
+                  <Separator className="my-6" />
+                  <h2 className="text-xl font-semibold text-foreground mb-4">City Staff</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
+                    {staff.map((o) => <OfficialCard key={o.id} official={o} />)}
                   </div>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-between text-sm">
-                {official.contact_email && (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3" /> {official.contact_email}</span>
-                )}
-                <span className="text-xs font-medium text-primary group-hover:underline">View Profile →</span>
-              </div>
-            </Link>
-          ))}
+                </>
+              )}
+
+              {/* Planning Commission */}
+              {planning.length > 0 && (
+                <>
+                  <Separator className="my-6" />
+                  <h2 className="text-xl font-semibold text-foreground mb-4">Planning Commission</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {planning.map((o) => <OfficialCard key={o.id} official={o} />)}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Non-All tabs: standard grid */}
+          {!isLoading && roleFilter !== "All" && (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((official) => (
+                <OfficialCard key={official.id} official={official} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </SiteLayout>

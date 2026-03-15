@@ -515,6 +515,7 @@ export type Database = {
           role: string | null
           slug: string
           social_links: Json | null
+          sort_order: number | null
           status: string | null
           title: string
         }
@@ -530,6 +531,7 @@ export type Database = {
           role?: string | null
           slug: string
           social_links?: Json | null
+          sort_order?: number | null
           status?: string | null
           title: string
         }
@@ -545,6 +547,7 @@ export type Database = {
           role?: string | null
           slug?: string
           social_links?: Json | null
+          sort_order?: number | null
           status?: string | null
           title?: string
         }
