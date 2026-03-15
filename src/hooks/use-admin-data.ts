@@ -90,7 +90,7 @@ export function useAdminSystemLog() {
 }
 
 // Generic mutation hook
-export function useTableMutation<TInsert extends Record<string, any>, TUpdate extends Record<string, any>>(
+export function useTableMutation(
   tableName: string,
   invalidateKeys: string[][]
 ) {
