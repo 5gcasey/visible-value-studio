@@ -3,11 +3,40 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { ExternalLink, FileText, AlertCircle } from "lucide-react";
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const PROXY_BASE = `${SUPABASE_URL}/functions/v1/granicus-proxy`;
 const CALENDAR = "https://lehi.granicus.com/ViewPublisher.php?view_id=1";
-const isFallback = (url: string | null) => !url || url === CALENDAR;
+
+// Extract PDF hash (lehi_XXXX.pdf) from a DocumentViewer URL
+function extractPdfHash(url: string | null): string | null {
+  if (!url) return null;
+  return url.match(/file=(lehi_[a-f0-9]+\.pdf)/i)?.[1] ?? null;
+}
+
+// Extract clip_id from an AgendaViewer URL
+function extractAgendaClipId(url: string | null): string | null {
+  if (!url) return null;
+  return url.match(/[?&]clip_id=(\d+)/i)?.[1] ?? null;
+}
+
+// Build proxy URL based on what kind of agenda URL we have
+function buildProxyUrl(agendaPdfUrl: string | null): string | null {
+  if (!agendaPdfUrl) return null;
+  const pdfHash = extractPdfHash(agendaPdfUrl);
+  if (pdfHash) return `${PROXY_BASE}?pdf_hash=${encodeURIComponent(pdfHash)}`;
+  const clipId = extractAgendaClipId(agendaPdfUrl);
+  if (clipId) return `${PROXY_BASE}?agenda_clip_id=${clipId}`;
+  return null;
+}
 
 interface AgendaViewerModalProps {
-  meeting: { title: string; meeting_date: string | null; agenda_url: string | null } | null;
+  meeting: {
+    id?: string;
+    title: string;
+    meeting_date: string | null;
+    agenda_url: string | null;
+    agenda_pdf_url?: string | null;
+  } | null;
   open: boolean;
   onClose: () => void;
 }
@@ -16,19 +45,29 @@ export function AgendaViewerModal({ meeting, open, onClose }: AgendaViewerModalP
   const [status, setStatus] = useState<"loading" | "loaded" | "blocked">("loading");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const proxyUrl = buildProxyUrl(meeting?.agenda_pdf_url ?? null);
+  const hasAgenda = !!proxyUrl;
+  const isAgendaViewer = !!extractAgendaClipId(meeting?.agenda_pdf_url ?? null);
+
   useEffect(() => {
-    if (!open) return;
-    setStatus("loading");
-    timerRef.current = setTimeout(() => setStatus("blocked"), 9000);
+    if (open) setStatus("loading");
+  }, [open, meeting?.id]);
+
+  useEffect(() => {
+    if (!open || !hasAgenda) return;
+    timerRef.current = setTimeout(() => setStatus("blocked"), 20000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [open, meeting?.agenda_url]);
+  }, [open, proxyUrl, hasAgenda]);
 
   if (!meeting) return null;
 
-  const noLink = isFallback(meeting.agenda_url);
   const dateStr = meeting.meeting_date
-    ? new Date(meeting.meeting_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    ? new Date(meeting.meeting_date + "T00:00:00").toLocaleDateString("en-US", {
+        month: "long", day: "numeric", year: "numeric",
+      })
     : "";
+
+  const externalLink = meeting.agenda_pdf_url ?? meeting.agenda_url;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -41,11 +80,11 @@ export function AgendaViewerModal({ meeting, open, onClose }: AgendaViewerModalP
                 Agenda — {meeting.title}{dateStr ? ` · ${dateStr}` : ""}
               </DialogTitle>
             </div>
-            {!noLink && (
+            {externalLink && (
               <Button size="sm" variant="ghost" asChild className="shrink-0">
-                <a href={meeting.agenda_url!} target="_blank" rel="noopener noreferrer">
+                <a href={externalLink} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                  Open in new tab
+                  {isAgendaViewer ? "Open on Granicus" : "Open PDF"}
                 </a>
               </Button>
             )}
@@ -53,16 +92,24 @@ export function AgendaViewerModal({ meeting, open, onClose }: AgendaViewerModalP
         </DialogHeader>
 
         <div className="flex-1 min-h-0 relative">
-          {noLink ? (
+          {!hasAgenda ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
               <AlertCircle className="h-10 w-10 text-muted-foreground" />
               <p className="text-sm text-muted-foreground max-w-md">
-                The direct agenda link for this meeting hasn't been catalogued yet. It will be updated automatically when discovered.
+                The agenda for this meeting hasn't been linked yet — it will be updated automatically.
               </p>
+              {meeting.agenda_url && (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={meeting.agenda_url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    View Agenda on Granicus
+                  </a>
+                </Button>
+              )}
               <Button size="sm" variant="outline" asChild>
                 <a href={CALENDAR} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                  Browse Lehi Meeting Archive
+                  Browse Meeting Archive
                 </a>
               </Button>
             </div>
@@ -70,14 +117,16 @@ export function AgendaViewerModal({ meeting, open, onClose }: AgendaViewerModalP
             <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
               <AlertCircle className="h-10 w-10 text-destructive" />
               <p className="text-sm text-muted-foreground max-w-md">
-                Granicus is preventing the agenda from loading inside this page.
+                The agenda could not be loaded in-page.
               </p>
-              <Button size="sm" variant="default" asChild>
-                <a href={meeting.agenda_url!} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                  Open Agenda in New Tab
-                </a>
-              </Button>
+              {externalLink && (
+                <Button size="sm" variant="default" asChild>
+                  <a href={externalLink} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    {isAgendaViewer ? "Open Agenda on Granicus" : "Open PDF in New Tab"}
+                  </a>
+                </Button>
+              )}
             </div>
           ) : (
             <>
@@ -85,12 +134,14 @@ export function AgendaViewerModal({ meeting, open, onClose }: AgendaViewerModalP
                 <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-10">
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    <p className="text-sm text-muted-foreground">Loading agenda…</p>
+                    <p className="text-sm text-muted-foreground">
+                      {isAgendaViewer ? "Loading agenda…" : "Loading agenda PDF…"}
+                    </p>
                   </div>
                 </div>
               )}
               <iframe
-                src={meeting.agenda_url!}
+                src={proxyUrl}
                 title={`Agenda: ${meeting.title}`}
                 className="w-full h-full border-0"
                 sandbox="allow-scripts allow-same-origin allow-popups"
@@ -98,7 +149,6 @@ export function AgendaViewerModal({ meeting, open, onClose }: AgendaViewerModalP
                   if (timerRef.current) clearTimeout(timerRef.current);
                   setStatus("loaded");
                 }}
-                onError={() => setStatus("blocked")}
               />
             </>
           )}

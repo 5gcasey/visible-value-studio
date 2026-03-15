@@ -13,15 +13,28 @@ serve(async (req: Request) => {
 
   const url = new URL(req.url);
   const clipId = url.searchParams.get("clip_id");
+  const pdfHash = url.searchParams.get("pdf_hash");
+  const agendaClipId = url.searchParams.get("agenda_clip_id");
 
-  if (!clipId || !/^\d+$/.test(clipId)) {
-    return new Response(JSON.stringify({ error: "Missing or invalid clip_id" }), {
+  let granicusUrl: string | null = null;
+  let injectSpeedScript = false;
+
+  if (clipId && /^\d+$/.test(clipId)) {
+    // Video player mode
+    granicusUrl = `https://lehi.granicus.com/player/clip/${clipId}?view_id=1&redirect=true`;
+    injectSpeedScript = true;
+  } else if (pdfHash && /^lehi_[a-f0-9]+\.pdf$/i.test(pdfHash)) {
+    // PDF document viewer mode
+    granicusUrl = `https://lehi.granicus.com/DocumentViewer.php?file=${pdfHash}`;
+  } else if (agendaClipId && /^\d+$/.test(agendaClipId)) {
+    // Agenda viewer mode
+    granicusUrl = `https://lehi.granicus.com/AgendaViewer.php?view_id=1&clip_id=${agendaClipId}`;
+  } else {
+    return new Response(JSON.stringify({ error: "Missing or invalid parameters. Provide clip_id, pdf_hash, or agenda_clip_id." }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-
-  const granicusUrl = `https://lehi.granicus.com/player/clip/${clipId}?view_id=1&redirect=true`;
 
   try {
     const resp = await fetch(granicusUrl, {
@@ -41,8 +54,8 @@ serve(async (req: Request) => {
 
     let html = await resp.text();
 
-    // Inject a postMessage listener so the parent page can control playback speed
-    const speedScript = `
+    if (injectSpeedScript) {
+      const speedScript = `
 <script>
 window.addEventListener("message", function(e) {
   if (e.data && e.data.type === "setPlaybackRate") {
@@ -52,14 +65,13 @@ window.addEventListener("message", function(e) {
 });
 </script>
 `;
-    // Insert before closing </body> or at end
-    if (html.includes("</body>")) {
-      html = html.replace("</body>", speedScript + "</body>");
-    } else {
-      html += speedScript;
+      if (html.includes("</body>")) {
+        html = html.replace("</body>", speedScript + "</body>");
+      } else {
+        html += speedScript;
+      }
     }
 
-    // Build response headers — strip X-Frame-Options and CSP frame-ancestors
     const responseHeaders: Record<string, string> = {
       ...corsHeaders,
       "Content-Type": "text/html; charset=utf-8",
