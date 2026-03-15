@@ -19,27 +19,24 @@ const roleFilters = ["All", "elected", "appointed", "staff"];
 
 function OfficialCard({ official }: { official: any }) {
   return (
-    <Link to={`/officials/${official.slug}`} className="group rounded-lg border bg-card p-6 transition-shadow duration-150 hover:shadow-md">
-      <div className="flex items-start gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
+    <Link to={`/officials/${official.slug}`} className="group flex flex-col justify-between rounded-lg border bg-card p-5 transition-shadow duration-150 hover:shadow-md h-full">
+      <div className="flex items-start gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
           {getInitials(official.name)}
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-card-foreground group-hover:text-primary">{official.name}</h3>
-          <p className="text-sm text-muted-foreground">{official.title}</p>
-          <p className="text-xs text-muted-foreground">{official.department}</p>
-          <div className="mt-2">
+          <h3 className="font-semibold text-card-foreground group-hover:text-primary leading-tight truncate">{official.name}</h3>
+          <p className="text-sm text-muted-foreground truncate">{official.title}</p>
+          <p className="text-xs text-muted-foreground truncate">{official.department}</p>
+          <div className="mt-1.5">
             <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${roleBadgeStyles[official.role || "staff"]}`}>
               {official.role?.charAt(0).toUpperCase()}{official.role?.slice(1)}
             </span>
           </div>
         </div>
       </div>
-      <div className="mt-4 flex items-center justify-between text-sm">
-        {official.contact_email && (
-          <span className="flex items-center gap-1 text-xs text-muted-foreground"><Mail className="h-3 w-3" /> {official.contact_email}</span>
-        )}
-        <span className="ml-auto text-xs font-medium text-primary group-hover:underline">View Profile →</span>
+      <div className="mt-3 flex items-center justify-end text-sm">
+        <span className="text-xs font-medium text-primary group-hover:underline">View Profile →</span>
       </div>
     </Link>
   );
