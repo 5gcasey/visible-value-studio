@@ -43,6 +43,7 @@ serve(async (req: Request) => {
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
+      redirect: "follow",
     });
 
     if (!resp.ok) {
@@ -54,19 +55,21 @@ serve(async (req: Request) => {
 
     const contentType = resp.headers.get("content-type") || "text/html";
     const isPdf = contentType.includes("application/pdf");
-    const isHtml = contentType.includes("text/html");
 
-    // For PDFs or other binary content, pass through as-is with correct content type
-    if (isPdf || (!isHtml && !injectSpeedScript)) {
+    // For pdfHash requests OR actual PDF content-type, always pass through as raw binary
+    if (pdfHash || isPdf) {
       const body = await resp.arrayBuffer();
       return new Response(body, {
         status: 200,
         headers: {
           ...corsHeaders,
-          "Content-Type": contentType,
+          "Content-Type": isPdf ? "application/pdf" : contentType,
+          "Content-Disposition": "inline",
         },
       });
     }
+
+    const isHtml = contentType.includes("text/html");
 
     let html = await resp.text();
 
