@@ -52,6 +52,22 @@ serve(async (req: Request) => {
       });
     }
 
+    const contentType = resp.headers.get("content-type") || "text/html";
+    const isPdf = contentType.includes("application/pdf");
+    const isHtml = contentType.includes("text/html");
+
+    // For PDFs or other binary content, pass through as-is with correct content type
+    if (isPdf || (!isHtml && !injectSpeedScript)) {
+      const body = await resp.arrayBuffer();
+      return new Response(body, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": contentType,
+        },
+      });
+    }
+
     let html = await resp.text();
 
     if (injectSpeedScript) {
